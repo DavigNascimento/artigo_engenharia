@@ -1,6 +1,6 @@
 # Barbearia: especificação da implementação monolítica
 
-Este documento define **o que** a versão monolítica da aplicação Barbearia deve fazer e **como** deve ser desenvolvida: de forma *spec driven*, com os testes escritos a partir dos requisitos **antes** da implementação. A versão em microsserviços está em [`../microsservicos/SPEC.md`](../microsservicos/SPEC.md).
+Este documento define **o que** a versão monolítica da aplicação Barbearia deve fazer e **como** deve ser desenvolvida: de forma *spec driven*, com os testes escritos a partir dos requisitos **antes** da implementação. A versão em microsserviços está em [`../microsservicos/SPEC-microsservicos-v3.md`](../microsservicos/SPEC-microsservicos-v3.md).
 
 ## 1. Objetivo
 
@@ -10,7 +10,7 @@ Implementar a aplicação **Barbearia**, um sistema de agendamento de uma barbea
 
 Para a comparação ser justa, as duas implementações devem atender aos mesmos requisitos, expor o mesmo contrato HTTP (seção 5) na mesma porta (`8080`), usar a mesma interface web (seção 5.3) e a mesma stack, mudando apenas a arquitetura. Assim, a mesma suíte de testes de aceitação e os mesmos scripts de benchmark rodam contra as duas sem nenhuma alteração.
 
-> As seções 1 a 7 são idênticas nos arquivos `monolito/SPEC.md` e `microsservicos/SPEC.md`. Se alguma regra mudar, altere os dois arquivos no mesmo commit.
+> As seções 1 a 7 são idênticas nos arquivos `monolito/SPEC-monolito-v3.md` e `microsservicos/SPEC-microsservicos-v3.md`. Se alguma regra mudar, altere os dois arquivos no mesmo commit.
 
 ## 2. Domínio
 
@@ -308,7 +308,7 @@ Estrutura sugerida (ajustar à convenção da linguagem escolhida):
 
 ```
 monolito/
-├── SPEC.md
+├── SPEC-monolito-v3.md
 ├── README.md              # como rodar e testar
 ├── docker-compose.yml     # app + postgres (volume persistente)
 ├── Dockerfile
