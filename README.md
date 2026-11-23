@@ -2,6 +2,13 @@
 
 Artigo comparando, de forma introdutória, as arquiteturas **monolítica** e de **microsserviços**: definição de cada conceito e um comparativo por diferentes aspectos, incluindo diferenças práticas quantitativas obtidas por meio de testes e benchmarks.
 
+## Integrantes
+
+- Davi Gonçalves Nascimento
+- João Victor Sales de Santana Melo
+- Pedro Faria Barreto
+- Pedro Henrique Moraes Silva Poderoso
+
 ## Estrutura do repositório
 
 | Diretório         | Conteúdo                                          |
