@@ -9,6 +9,10 @@ Artigo comparando, de forma introdutória, as arquiteturas **monolítica** e de 
 - Pedro Faria Barreto
 - Pedro Henrique Moraes Silva Poderoso
 
+## Organização
+
+Quadro do Trello com o planejamento do projeto: [Artigo: Monolito vs Microsserviços](https://trello.com/b/AK5eosyl/artigo-monolito-vs-microsservi%C3%A7os)
+
 ## Estrutura do repositório
 
 | Diretório         | Conteúdo                                          |
