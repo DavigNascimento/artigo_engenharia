@@ -1,0 +1,36 @@
+# LaTeX: arquivos gerados na compilação
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.nav
+*.snm
+*.vrb
+
+# Editores e sistema
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Dependências e builds dos cenários
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+target/
+build/
+dist/
+.env
