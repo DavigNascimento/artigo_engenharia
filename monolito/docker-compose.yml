@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Configure POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Configure POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    environment:
+      PORT: 8080
+      HOST: 0.0.0.0
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BARBERIA_LOGIN: ${BARBERIA_LOGIN:?Configure BARBERIA_LOGIN in .env}
+      BARBERIA_PASSWORD: ${BARBERIA_PASSWORD:?Configure BARBERIA_PASSWORD in .env}
+      TOKEN_SECRET: ${TOKEN_SECRET:?Configure TOKEN_SECRET in .env}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres_data:

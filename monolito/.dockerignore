@@ -1,0 +1,6 @@
+.env
+.env.*
+node_modules
+tests
+README.md
+SPEC-monolito-v3.md
