@@ -22,6 +22,16 @@ Quadro do Trello com o planejamento do projeto: [Artigo: Monolito vs Microsservi
 | `microsservicos/` | Implementação do cenário com arquitetura de microsserviços |
 | `docs/`           | Briefing e documentos de referência do trabalho   |
 
+## Executar a aplicação monolítica
+
+Copie `monolito/.env.example` para `monolito/.env`, troque as credenciais de exemplo e, na pasta `monolito/`, execute:
+
+```powershell
+docker compose up --build
+```
+
+Depois, acesse http://localhost:8080. O [README do monólito](./monolito/README.md) contém instruções, credenciais configuráveis e comandos de teste.
+
 ## Estrutura do artigo
 
 - **Introdução:** por que precisamos de arquiteturas e quais são as formas de organização (monolito e microsserviços).
