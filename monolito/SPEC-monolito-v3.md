@@ -92,8 +92,8 @@ O documento não define os itens abaixo. Itens 1, 5 e 8 foram resolvidos pelos r
 
 1. ~~Horário de abertura~~: resolvido pelo RFA4.
 2. **Corte e barba no limite**: às 11:30 ocuparia 12:00 (almoço) e no último horário ocuparia o horário seguinte, fora do expediente. Leitura adotada: os dois casos são **rejeitados** (422).
-3. **Métodos de pagamento** (RF21), por exemplo Pix, cartão de crédito e cartão de débito. *Em aberto.*
-4. **Canais de notificação** (RF26), por exemplo SMS ou WhatsApp, e se o barbeiro também pode deixar de receber. *Em aberto.*
+3. **Métodos de pagamento** (RF21): resolvido para Pix, cartão de crédito e cartão de débito. Dados de cartão são enviados somente ao provedor simulado e nunca persistidos.
+4. **Canais de notificação** (RF26): resolvido para WhatsApp. O envio é simulado; o barbeiro sempre recebe a notificação e o cliente pode desativá-la.
 5. ~~Como calcular o lucro~~: resolvido pelo RFA3.
 6. **Excluir (RF18) e cancelar (RF13)**: leitura adotada: excluir remove o registro e cancelar só muda a situação.
 7. **Cliente no agendamento (RF1)**: leitura adotada: o cliente é o que está logado (RFA2); nome e telefone vêm do cadastro dele e são validados pelo RF2 e RF3. Na interface da barbearia, o agendamento informa nome e telefone de um cliente já cadastrado (telefone não cadastrado retorna 404).
