@@ -1,0 +1,101 @@
+services:
+  db-agendamento:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Configure POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Configure POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_agendamento_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [interno]
+
+  autenticacao:
+    build: .
+    environment: &service-env
+      PORT: 8080
+      HOST: 0.0.0.0
+      PGHOST: db-agendamento
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BARBERIA_LOGIN: ${BARBERIA_LOGIN:?Configure BARBERIA_LOGIN in .env}
+      BARBERIA_PASSWORD: ${BARBERIA_PASSWORD:?Configure BARBERIA_PASSWORD in .env}
+      TOKEN_SECRET: ${TOKEN_SECRET:?Configure TOKEN_SECRET in .env}
+    depends_on:
+      db-agendamento:
+        condition: service_healthy
+    networks: [interno]
+
+  clientes:
+    build: .
+    environment: *service-env
+    depends_on:
+      db-agendamento:
+        condition: service_healthy
+    networks: [interno]
+
+  catalogo:
+    build: .
+    environment: *service-env
+    depends_on:
+      db-agendamento:
+        condition: service_healthy
+    networks: [interno]
+
+  agendamento:
+    build: .
+    environment:
+      <<: *service-env
+      AGGREGATE_HEALTH: "true"
+    depends_on:
+      db-agendamento:
+        condition: service_healthy
+    networks: [interno]
+
+  pagamentos:
+    build: .
+    environment: *service-env
+    depends_on:
+      db-agendamento:
+        condition: service_healthy
+    networks: [interno]
+
+  notificacoes:
+    build: .
+    environment: *service-env
+    depends_on:
+      db-agendamento:
+        condition: service_healthy
+    networks: [interno]
+
+  gateway:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./gateway:/usr/share/nginx/html:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      - autenticacao
+      - clientes
+      - catalogo
+      - agendamento
+      - pagamentos
+    networks: [interno]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+networks:
+  interno:
+
+volumes:
+  postgres_agendamento_data:
