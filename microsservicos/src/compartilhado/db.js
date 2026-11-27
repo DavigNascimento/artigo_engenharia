@@ -1,19 +1,17 @@
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import pg from "pg";
 
 const { Pool } = pg;
 
+// Conexão configurada pelas variáveis PGHOST, PGPORT, PGDATABASE, PGUSER e PGPASSWORD.
+// PG_POOL_MAX e PG_APPLICATION_NAME são iguais por processo nas duas arquiteturas.
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: 10,
-  application_name: "barbearia-monolito"
+  max: Number(process.env.PG_POOL_MAX || 10),
+  application_name: process.env.PG_APPLICATION_NAME || "barbearia"
 });
 
-export async function migrate() {
-  const directory = dirname(fileURLToPath(import.meta.url));
-  const sql = await readFile(join(directory, "../../migrations/001_init.sql"), "utf8");
+export async function migrate(file) {
+  const sql = await readFile(file, "utf8");
   await pool.query(sql);
 }
 

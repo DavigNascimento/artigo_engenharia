@@ -2,5 +2,7 @@
 .env.*
 node_modules
 tests
+gateway
+docker-compose*.yml
 README.md
-SPEC-monolito-v3.md
+SPEC-*.md

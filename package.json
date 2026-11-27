@@ -1,0 +1,13 @@
+{
+  "name": "artigo-monolito-microsservicos",
+  "private": true,
+  "type": "module",
+  "description": "Testes e benchmark compartilhados pelas duas implementações (sem dependências).",
+  "scripts": {
+    "test:paridade": "node --test testes/paridade.test.mjs",
+    "test:aceitacao": "node --test testes/aceitacao/api.test.js",
+    "test:resiliencia": "node --test testes/microsservicos/resiliencia.test.js",
+    "benchmark": "node testes/benchmark/executar.mjs",
+    "benchmark:resumo": "node testes/benchmark/resumir.mjs"
+  }
+}

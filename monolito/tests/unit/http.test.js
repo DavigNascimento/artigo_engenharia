@@ -1,12 +1,12 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
-import { createAppServer } from "../../src/app.js";
+import { createApp } from "../../src/app.js";
 
 let server;
 let baseUrl;
 
 before(async () => {
-  server = createAppServer();
+  server = createApp();
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });

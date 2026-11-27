@@ -1,6 +1,11 @@
+# Monolito: um processo (app) + um PostgreSQL (db).
+# Ambiente funcional, sem limites de recursos. Para medições, aplique sempre o mesmo
+# orçamento das duas arquiteturas com docker-compose.limites.yml (o executor do benchmark
+# faz isso automaticamente):
+#   docker compose -f docker-compose.yml -f docker-compose.limites.yml up --build
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:f9cf3e1f0066f0eb0c48707d864f0ac5941e9ff454a072077d97a4d278d07d73
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Configure POSTGRES_DB in .env}
       POSTGRES_USER: ${POSTGRES_USER:?Configure POSTGRES_USER in .env}
@@ -8,13 +13,19 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      # TCP (-h): durante a inicialização o Postgres roda os scripts num servidor temporário
+      # que só escuta por socket Unix; checar por TCP evita marcar o banco como pronto cedo demais.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 3s
       timeout: 3s
       retries: 20
+      # Durante a subida checa a cada 1 s, para o tempo até pronto não depender do intervalo.
+      start_period: 120s
+      start_interval: 1s
 
   app:
     build: .
+    image: barbearia-monolito-app:local
     environment:
       PORT: 8080
       HOST: 0.0.0.0
@@ -23,11 +34,13 @@ services:
       PGDATABASE: ${POSTGRES_DB}
       PGUSER: ${POSTGRES_USER}
       PGPASSWORD: ${POSTGRES_PASSWORD}
+      PG_POOL_MAX: ${PG_POOL_MAX:-10}
+      PG_APPLICATION_NAME: monolito
       BARBERIA_LOGIN: ${BARBERIA_LOGIN:?Configure BARBERIA_LOGIN in .env}
       BARBERIA_PASSWORD: ${BARBERIA_PASSWORD:?Configure BARBERIA_PASSWORD in .env}
       TOKEN_SECRET: ${TOKEN_SECRET:?Configure TOKEN_SECRET in .env}
     ports:
-      - "8080:8080"
+      - "${PORTA:-8080}:8080"
     depends_on:
       db:
         condition: service_healthy
@@ -36,6 +49,9 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+      # Durante a subida checa a cada 1 s, para o tempo até pronto não depender do intervalo.
+      start_period: 120s
+      start_interval: 1s
 
 volumes:
   postgres_data:

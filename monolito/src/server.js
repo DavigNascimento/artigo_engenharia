@@ -1,35 +1,20 @@
-import { createAppServer } from "./app.js";
-import { assertTokenSecret } from "./compartilhado/auth.js";
-import { pool, migrate } from "./compartilhado/db.js";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { iniciarProcesso } from "./compartilhado/inicializacao.js";
 import { ensureBarbershopAccount } from "./autenticacao/index.js";
-import { runDailyNotifications, startDailyNotifications } from "./notificacoes/index.js";
+import { startDailyNotifications } from "./notificacoes/index.js";
+import { rotas, verificarSaude, webRoot } from "./app.js";
 
-async function start() {
-  assertTokenSecret();
-  await migrate();
-  await ensureBarbershopAccount();
-  await runDailyNotifications();
-  startDailyNotifications();
+const root = dirname(fileURLToPath(import.meta.url));
 
-  const port = Number(process.env.PORT || 8080);
-  const host = process.env.HOST || "0.0.0.0";
-  const server = createAppServer();
-  server.listen(port, host, () => {
-    console.info(JSON.stringify({ evento: "servidor_pronto", host, port }));
-  });
-
-  const shutdown = async () => {
-    server.close(async () => {
-      await pool.end();
-      process.exit(0);
-    });
-  };
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
-}
-
-start().catch(async () => {
-  console.error(JSON.stringify({ evento: "falha_inicializacao" }));
-  await pool.end();
-  process.exitCode = 1;
+await iniciarProcesso({
+  rotas,
+  verificarSaude,
+  webRoot,
+  migracao: resolve(root, "../migrations/001_init.sql"),
+  preparar: async () => {
+    await ensureBarbershopAccount();
+    // Em réplicas extras do monolito (escala horizontal), desligue a rotina com NOTIFICACOES_ATIVAS=false.
+    if (process.env.NOTIFICACOES_ATIVAS !== "false") startDailyNotifications();
+  }
 });

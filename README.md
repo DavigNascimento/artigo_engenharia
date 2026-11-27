@@ -15,22 +15,39 @@ Quadro do Trello com o planejamento do projeto: [Artigo: Monolito vs Microsservi
 
 ## Estrutura do repositório
 
-| Diretório         | Conteúdo                                          |
-|-------------------|---------------------------------------------------|
-| `artigo/`         | Artigo em LaTeX (template SBC)                    |
-| `monolito/`       | Implementação do cenário com arquitetura monolítica |
-| `microsservicos/` | Implementação do cenário com arquitetura de microsserviços |
-| `docs/`           | Briefing e documentos de referência do trabalho   |
+| Diretório / arquivo | Conteúdo |
+|---------------------|----------|
+| `artigo/`           | Artigo em LaTeX (template SBC) |
+| `monolito/`         | Implementação com arquitetura monolítica (monolito modular) |
+| `microsservicos/`   | Implementação com arquitetura de microsserviços |
+| `testes/`           | Suíte de aceitação, testes de resiliência, teste de paridade e benchmark, comuns às duas |
+| `METODOLOGIA.md`    | Como os fatores além da arquitetura foram controlados e ameaças à validade |
+| `docs/`             | Briefing e documentos de referência do trabalho |
 
-## Executar a aplicação monolítica
+## Executar as aplicações
 
-Copie `monolito/.env.example` para `monolito/.env`, troque as credenciais de exemplo e, na pasta `monolito/`, execute:
+Em cada pasta (`monolito/` ou `microsservicos/`), copie `.env.example` para `.env`, troque as
+credenciais de exemplo e execute:
 
 ```powershell
 docker compose up --build
 ```
 
-Depois, acesse http://localhost:8080. O [README do monólito](./monolito/README.md) contém instruções, credenciais configuráveis e comandos de teste.
+Depois, acesse http://localhost:8080 (uma arquitetura por vez, ambas usam a porta 8080). Os
+READMEs do [monolito](./monolito/README.md) e dos [microsserviços](./microsservicos/README.md)
+detalham a estrutura e os testes.
+
+## Testes e benchmark
+
+Na raiz, com uma das aplicações no ar (Node.js 20+, sem dependências):
+
+```powershell
+$env:BARBERIA_PASSWORD = "senha-configurada-no-env"
+npm run test:aceitacao     # mesma suíte para as duas arquiteturas
+npm run test:paridade      # garante que só a arquitetura difere entre as implementações
+npm run test:resiliencia   # só microsserviços
+npm run benchmark          # protocolo completo; ver testes/benchmark/README.md
+```
 
 ## Estrutura do artigo
 
