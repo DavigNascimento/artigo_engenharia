@@ -1,0 +1,10 @@
+# Orçamento de recursos para medições (SPEC 11), idêntico ao dos microsserviços:
+# 2 CPUs e 2 GiB no total = banco 1 CPU / 1 GiB + camada de aplicação 1 CPU / 1 GiB.
+services:
+  db:
+    cpus: ${CPUS_DB:-1.0}
+    mem_limit: ${MEM_DB:-1024m}
+
+  app:
+    cpus: ${CPUS_APP:-1.0}
+    mem_limit: ${MEM_APP:-1024m}

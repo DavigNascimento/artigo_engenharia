@@ -1,101 +1,141 @@
+# Microsserviços: gateway + 6 serviços + um PostgreSQL com um banco isolado por serviço.
+# Ambiente funcional, sem limites de recursos. Para medições, aplique sempre o mesmo
+# orçamento das duas arquiteturas com docker-compose.limites.yml (o executor do benchmark
+# faz isso automaticamente):
+#   docker compose -f docker-compose.yml -f docker-compose.limites.yml up --build
+x-servico: &servico
+  depends_on:
+    db:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+    interval: 5s
+    timeout: 3s
+    retries: 20
+    # Durante a subida checa a cada 1 s, para o tempo até pronto não depender do intervalo.
+    start_period: 120s
+    start_interval: 1s
+  networks: [interno]
+
+x-ambiente: &ambiente
+  PORT: 8080
+  HOST: 0.0.0.0
+  PGHOST: db
+  PGPORT: 5432
+  PGPASSWORD: ${POSTGRES_PASSWORD}
+  PG_POOL_MAX: ${PG_POOL_MAX:-10}
+  TOKEN_SECRET: ${TOKEN_SECRET:?Configure TOKEN_SECRET in .env}
+  TIMEOUT_DEPENDENCIA_MS: ${TIMEOUT_DEPENDENCIA_MS:-2000}
+
 services:
-  db-agendamento:
-    image: postgres:17-alpine
+  db:
+    image: postgres:17-alpine@sha256:f9cf3e1f0066f0eb0c48707d864f0ac5941e9ff454a072077d97a4d278d07d73
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Configure POSTGRES_DB in .env}
       POSTGRES_USER: ${POSTGRES_USER:?Configure POSTGRES_USER in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD in .env}
     volumes:
-      - postgres_agendamento_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      # TCP (-h): durante a inicialização o Postgres roda os scripts num servidor temporário
+      # que só escuta por socket Unix; checar por TCP evita marcar o banco como pronto cedo demais.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 3s
       timeout: 3s
       retries: 20
+      # Durante a subida checa a cada 1 s, para o tempo até pronto não depender do intervalo.
+      start_period: 120s
+      start_interval: 1s
     networks: [interno]
 
   autenticacao:
-    build: .
-    environment: &service-env
-      PORT: 8080
-      HOST: 0.0.0.0
-      PGHOST: db-agendamento
-      PGPORT: 5432
-      PGDATABASE: ${POSTGRES_DB}
-      PGUSER: ${POSTGRES_USER}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
+    <<: *servico
+    build: { context: ., args: { SERVICO: autenticacao } }
+    image: barbearia-ms-autenticacao:local
+    environment:
+      <<: *ambiente
+      PGDATABASE: autenticacao
+      PGUSER: autenticacao
+      PG_APPLICATION_NAME: ms-autenticacao
       BARBERIA_LOGIN: ${BARBERIA_LOGIN:?Configure BARBERIA_LOGIN in .env}
       BARBERIA_PASSWORD: ${BARBERIA_PASSWORD:?Configure BARBERIA_PASSWORD in .env}
-      TOKEN_SECRET: ${TOKEN_SECRET:?Configure TOKEN_SECRET in .env}
-    depends_on:
-      db-agendamento:
-        condition: service_healthy
-    networks: [interno]
 
   clientes:
-    build: .
-    environment: *service-env
-    depends_on:
-      db-agendamento:
-        condition: service_healthy
-    networks: [interno]
+    <<: *servico
+    build: { context: ., args: { SERVICO: clientes } }
+    image: barbearia-ms-clientes:local
+    environment:
+      <<: *ambiente
+      PGDATABASE: clientes
+      PGUSER: clientes
+      PG_APPLICATION_NAME: ms-clientes
 
   catalogo:
-    build: .
-    environment: *service-env
-    depends_on:
-      db-agendamento:
-        condition: service_healthy
-    networks: [interno]
+    <<: *servico
+    build: { context: ., args: { SERVICO: catalogo } }
+    image: barbearia-ms-catalogo:local
+    environment:
+      <<: *ambiente
+      PGDATABASE: catalogo
+      PGUSER: catalogo
+      PG_APPLICATION_NAME: ms-catalogo
 
   agendamento:
-    build: .
+    <<: *servico
+    build: { context: ., args: { SERVICO: agendamento } }
+    image: barbearia-ms-agendamento:local
     environment:
-      <<: *service-env
-      AGGREGATE_HEALTH: "true"
-    depends_on:
-      db-agendamento:
-        condition: service_healthy
-    networks: [interno]
+      <<: *ambiente
+      PGDATABASE: agendamento
+      PGUSER: agendamento
+      PG_APPLICATION_NAME: ms-agendamento
+      DEPENDENCIAS_SAUDE: autenticacao,clientes,catalogo,pagamentos,notificacoes
 
   pagamentos:
-    build: .
-    environment: *service-env
-    depends_on:
-      db-agendamento:
-        condition: service_healthy
-    networks: [interno]
+    <<: *servico
+    build: { context: ., args: { SERVICO: pagamentos } }
+    image: barbearia-ms-pagamentos:local
+    environment:
+      <<: *ambiente
+      PGDATABASE: pagamentos
+      PGUSER: pagamentos
+      PG_APPLICATION_NAME: ms-pagamentos
 
   notificacoes:
-    build: .
-    environment: *service-env
-    depends_on:
-      db-agendamento:
-        condition: service_healthy
-    networks: [interno]
+    <<: *servico
+    build: { context: ., args: { SERVICO: notificacoes } }
+    image: barbearia-ms-notificacoes:local
+    environment:
+      <<: *ambiente
+    depends_on: {}
 
   gateway:
-    image: nginx:1.27-alpine
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./gateway:/usr/share/nginx/html:ro
+      - ./web:/usr/share/nginx/html:ro
     ports:
-      - "8080:8080"
+      - "${PORTA:-8080}:8080"
     depends_on:
-      - autenticacao
-      - clientes
-      - catalogo
-      - agendamento
-      - pagamentos
-    networks: [interno]
+      autenticacao: { condition: service_healthy }
+      clientes: { condition: service_healthy }
+      catalogo: { condition: service_healthy }
+      agendamento: { condition: service_healthy }
+      pagamentos: { condition: service_healthy }
+      notificacoes: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/health"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
       interval: 5s
       timeout: 3s
       retries: 20
+      # Durante a subida checa a cada 1 s, para o tempo até pronto não depender do intervalo.
+      start_period: 120s
+      start_interval: 1s
+    networks: [interno]
 
 networks:
   interno:
 
 volumes:
-  postgres_agendamento_data:
+  postgres_data:

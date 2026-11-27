@@ -1,11 +1,10 @@
-import { pool } from "../compartilhado/db.js";
 import { badRequest, notFound } from "../compartilhado/errors.js";
 import {
-  requireDuration, requireFields, requireIntegerCents, requireName, requireScheduleConfig, requireUuid
+  requireDuration, requireFields, requireIntegerCents, requireName, requireUuid
 } from "../compartilhado/validation.js";
 import {
-  deactivateBarberRow, findBarberRow, findServiceRow, insertBarber, insertService,
-  listBarberRows, listServiceRows, saveBarber, saveOpeningHours, saveService, selectOpeningHours
+  deactivateBarberRow, findBarberRow, findBarberRowsByIds, findServiceRow, findServiceRowsByIds,
+  insertBarber, insertService, listBarberRows, listServiceRows, saveBarber, saveService
 } from "./repository.js";
 
 function barberRecord(row) {
@@ -22,6 +21,11 @@ function serviceRecord(row) {
   };
 }
 
+function requireIds(ids, label) {
+  if (!Array.isArray(ids)) throw badRequest("Informe a lista de ids.");
+  return ids.map((id) => requireUuid(id, label));
+}
+
 export async function listBarbers(active) {
   if (active !== undefined && active !== "true" && active !== "false") {
     throw badRequest("O filtro ativo deve ser true ou false.");
@@ -30,11 +34,18 @@ export async function listBarbers(active) {
   return result.rows.map(barberRecord);
 }
 
-export async function getBarber(id, includeInactive = false, client = pool) {
+export async function getBarber(id, includeInactive = false) {
   requireUuid(id, "Barbeiro");
-  const result = await findBarberRow(id, includeInactive, client);
+  const result = await findBarberRow(id, includeInactive);
   if (!result.rowCount) throw notFound("Barbeiro não encontrado.");
   return barberRecord(result.rows[0]);
+}
+
+export async function buscarBarbeirosPorIds(ids) {
+  const valid = requireIds(ids, "Barbeiro");
+  if (!valid.length) return [];
+  const result = await findBarberRowsByIds(valid);
+  return result.rows.map(barberRecord);
 }
 
 export async function createBarber(input) {
@@ -63,11 +74,18 @@ export async function listServices() {
   return result.rows.map(serviceRecord);
 }
 
-export async function getService(id, client = pool) {
+export async function getService(id) {
   requireUuid(id, "Serviço");
-  const result = await findServiceRow(id, client);
+  const result = await findServiceRow(id);
   if (!result.rowCount) throw notFound("Serviço não encontrado.");
   return serviceRecord(result.rows[0]);
+}
+
+export async function buscarServicosPorIds(ids) {
+  const valid = requireIds(ids, "Serviço");
+  if (!valid.length) return [];
+  const result = await findServiceRowsByIds(valid);
+  return result.rows.map(serviceRecord);
 }
 
 function serviceInput(input) {
@@ -81,8 +99,7 @@ function serviceInput(input) {
 }
 
 export async function createService(input) {
-  const service = serviceInput(input);
-  const result = await insertService(service);
+  const result = await insertService(serviceInput(input));
   return serviceRecord(result.rows[0]);
 }
 
@@ -92,18 +109,4 @@ export async function updateService(id, input) {
   const result = await saveService(id, service);
   if (!result.rowCount) throw notFound("Serviço não encontrado.");
   return serviceRecord(result.rows[0]);
-}
-
-export async function getOpeningHours(client) {
-  const result = await selectOpeningHours(client);
-  if (!result.rowCount) throw new Error("Configuração do expediente ausente.");
-  return { horaAbertura: result.rows[0].hora_abertura, ultimoHorario: result.rows[0].ultimo_horario };
-}
-
-export async function setOpeningHours(input) {
-  requireFields(input, ["horaAbertura", "ultimoHorario"]);
-  const { horaAbertura, ultimoHorario } = input;
-  requireScheduleConfig(horaAbertura, ultimoHorario);
-  const result = await saveOpeningHours(horaAbertura, ultimoHorario);
-  return { horaAbertura: result.rows[0].hora_abertura, ultimoHorario: result.rows[0].ultimo_horario };
 }

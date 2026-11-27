@@ -1,7 +1,12 @@
 import { createToken, hashPassword, verifyPassword } from "../compartilhado/auth.js";
-import { requireFields, requirePassword, requirePhone } from "../compartilhado/validation.js";
+import {
+  requireFields, requirePassword, requirePhone, requireUuid
+} from "../compartilhado/validation.js";
 import { unauthorized } from "../compartilhado/errors.js";
-import { findBarbershopCredentials, findClientCredentials, saveBarbershopUser } from "./repository.js";
+import {
+  deleteClientCredentials, findBarbershopCredentials, findClientCredentials, saveBarbershopUser,
+  upsertClientCredentials
+} from "./repository.js";
 
 export async function ensureBarbershopAccount() {
   const login = process.env.BARBERIA_LOGIN || "admin";
@@ -25,4 +30,20 @@ export async function loginBarbershop(input) {
     throw unauthorized();
   }
   return { token: createToken(credentials.id, "BARBEARIA") };
+}
+
+// Interface pública usada pelo módulo clientes no cadastro (RFA2).
+export async function criarCredencialCliente(input) {
+  requireFields(input, ["clienteId", "telefone", "senha"]);
+  const clientId = requireUuid(input.clienteId, "Cliente");
+  const phone = requirePhone(input.telefone);
+  const password = requirePassword(input.senha);
+  await upsertClientCredentials({ clientId, phone, passwordHash: await hashPassword(password) });
+  return { clienteId: clientId };
+}
+
+// Compensação usada pelo módulo clientes quando o cadastro é desfeito.
+export async function removerCredencialCliente(clienteId) {
+  await deleteClientCredentials(requireUuid(clienteId, "Cliente"));
+  return { clienteId };
 }

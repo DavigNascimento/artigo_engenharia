@@ -29,3 +29,7 @@ export function conflict(message = "Conflito com um registro existente.") {
 export function unprocessable(message) {
   return new AppError(422, "REGRA_NEGOCIO", message);
 }
+
+export function serviceUnavailable(message = "Serviço dependente indisponível.") {
+  return new AppError(503, "SERVICO_INDISPONIVEL", message);
+}

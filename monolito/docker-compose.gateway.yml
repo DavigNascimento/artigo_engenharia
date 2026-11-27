@@ -1,0 +1,28 @@
+# Controle experimental "monolito + gateway": coloca o mesmo Nginx dos microsserviços
+# (mesma imagem e mesmas opções de proxy) na frente do monolito, para separar o custo do
+# salto pelo gateway do custo da arquitetura em si.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gateway.yml up --build
+#
+# Para medições, some também docker-compose.limites.yml e docker-compose.gateway-limites.yml.
+services:
+  app:
+    ports: !reset []
+
+  gateway:
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${PORTA:-8080}:8080"
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      # Durante a subida checa a cada 1 s, para o tempo até pronto não depender do intervalo.
+      start_period: 120s
+      start_interval: 1s

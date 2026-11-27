@@ -1,5 +1,7 @@
 import { now, todayKey, localHourMinute } from "../compartilhado/clock.js";
-import { findAppointmentsForNotification, reserveDailyRun } from "./repository.js";
+import { agendamento, clientes } from "./dependencias.js";
+
+// Módulo sem tabelas próprias: consulta agendamento e clientes pelas interfaces públicas.
 
 export const sentNotifications = [];
 
@@ -24,15 +26,23 @@ export function notificationsForAppointments(appointments) {
   ]);
 }
 
-export async function runDailyNotifications(sender = simulatedSender) {
-  const date = todayKey();
-  const lock = await reserveDailyRun(date);
-  if (!lock.rowCount) return 0;
-  const result = await findAppointmentsForNotification(date);
-  for (const notification of notificationsForAppointments(result.rows)) await sender(notification);
-  return result.rowCount;
+export async function runDailyNotifications(sender = simulatedSender, date = todayKey()) {
+  const scheduled = await agendamento.listarAgendadosDoDia(date);
+  if (!scheduled.length) return 0;
+  const customers = await clientes.buscarClientesPorIds([...new Set(scheduled.map((item) => item.clienteId))]);
+  const customerById = new Map(customers.map((customer) => [customer.id, customer]));
+  const rows = scheduled.map((item) => ({
+    agendamento_id: item.id,
+    cliente_id: item.clienteId,
+    barbeiro_id: item.barbeiroId,
+    receber_notificacoes: customerById.get(item.clienteId)?.receberNotificacoes ?? false,
+    canal: customerById.get(item.clienteId)?.canal ?? "WhatsApp"
+  }));
+  for (const notification of notificationsForAppointments(rows)) await sender(notification);
+  return scheduled.length;
 }
 
+// Rotina diária (RF25): roda às 09:00 (America/Sao_Paulo), uma vez por dia por processo.
 export function startDailyNotifications() {
   let running = false;
   let lastRunDate = null;
@@ -41,7 +51,7 @@ export function startDailyNotifications() {
     if (running || lastRunDate === date || localHourMinute(now()) !== "09:00") return;
     running = true;
     try {
-      await runDailyNotifications();
+      await runDailyNotifications(simulatedSender, date);
       lastRunDate = date;
     } catch {
       console.error(JSON.stringify({ evento: "falha_notificacao_diaria" }));

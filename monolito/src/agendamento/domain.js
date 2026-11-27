@@ -1,6 +1,5 @@
 import { shiftDateKey, todayKey } from "../compartilhado/clock.js";
 import { isValidDateKey } from "../compartilhado/validation.js";
-import { unprocessable } from "../compartilhado/errors.js";
 
 export function toMinutes(value) {
   const [hours, minutes] = value.slice(0, 5).split(":").map(Number);
@@ -38,17 +37,6 @@ export function availableSlots(date, duration, opening, last, reserved = new Set
     if (appointmentSlots(date, time, duration, opening, last, reserved)) result.push(time);
   }
   return result;
-}
-
-export function validateSelectedSlot(date, time, duration, opening, last, reserved, referenceDate = todayKey()) {
-  if (!isValidDateKey(date) || date < shiftDateKey(referenceDate, 1) || date > shiftDateKey(referenceDate, 30)) {
-    throw unprocessable("A data deve estar entre 1 e 30 dias a partir de hoje.");
-  }
-  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
-  if (weekday === 0 || weekday === 1) throw unprocessable("A barbearia atende somente de terça-feira a sábado.");
-  const slots = appointmentSlots(date, time, duration, opening, last, reserved);
-  if (!slots) return null;
-  return slots;
 }
 
 export function summarizeAppointments(items) {

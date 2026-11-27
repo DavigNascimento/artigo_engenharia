@@ -5,9 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test tests/unit/domain.test.js tests/unit/auth.test.js tests/unit/http.test.js",
-    "test:acceptance": "node --test tests/acceptance/api.test.js",
-    "benchmark": "k6 run tests/benchmark/k6.js"
+    "test": "node --test \"tests/unit/*.test.js\""
   },
   "dependencies": {
     "pg": "^8.16.3"

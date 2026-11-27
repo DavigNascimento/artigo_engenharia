@@ -1,0 +1,10 @@
+# Orçamento do controle "monolito + gateway": a camada de aplicação continua com
+# 1 CPU / 1 GiB, dividida entre o gateway (mesma fatia do gateway dos microsserviços) e o app.
+services:
+  app:
+    cpus: ${CPUS_APP_COM_GATEWAY:-0.85}
+    mem_limit: ${MEM_APP_COM_GATEWAY:-960m}
+
+  gateway:
+    cpus: ${CPUS_GATEWAY:-0.15}
+    mem_limit: ${MEM_GATEWAY:-64m}

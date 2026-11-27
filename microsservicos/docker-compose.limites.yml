@@ -1,0 +1,34 @@
+# Orçamento de recursos para medições (SPEC 11), idêntico ao do monolito:
+# 2 CPUs e 2 GiB no total = banco 1 CPU / 1 GiB + camada de aplicação 1 CPU / 1 GiB.
+#
+# A camada de aplicação é dividida entre gateway e serviços. A soma deve continuar
+# 1.0 CPU e 1024 MiB. A divisão padrão dá a maior fatia ao agendamento, que recebe a carga
+# do benchmark, e a do gateway é a mesma do controle "monolito + gateway". Essa divisão é uma
+# decisão experimental: registre-a junto dos resultados e varie-a no .env para testar a
+# sensibilidade. Cotas fixas por container não emprestam CPU ociosa entre serviços; esse
+# é um custo real de particionar a aplicação e aparece nos resultados.
+services:
+  db:
+    cpus: ${CPUS_DB:-1.0}
+    mem_limit: ${MEM_DB:-1024m}
+  gateway:
+    cpus: ${CPUS_GATEWAY:-0.15}
+    mem_limit: ${MEM_GATEWAY:-64m}
+  autenticacao:
+    cpus: ${CPUS_AUTENTICACAO:-0.10}
+    mem_limit: ${MEM_AUTENTICACAO:-128m}
+  clientes:
+    cpus: ${CPUS_CLIENTES:-0.15}
+    mem_limit: ${MEM_CLIENTES:-160m}
+  catalogo:
+    cpus: ${CPUS_CATALOGO:-0.15}
+    mem_limit: ${MEM_CATALOGO:-160m}
+  agendamento:
+    cpus: ${CPUS_AGENDAMENTO:-0.35}
+    mem_limit: ${MEM_AGENDAMENTO:-256m}
+  pagamentos:
+    cpus: ${CPUS_PAGAMENTOS:-0.05}
+    mem_limit: ${MEM_PAGAMENTOS:-128m}
+  notificacoes:
+    cpus: ${CPUS_NOTIFICACOES:-0.05}
+    mem_limit: ${MEM_NOTIFICACOES:-128m}

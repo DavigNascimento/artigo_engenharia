@@ -1,16 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { pool } from "../compartilhado/db.js";
 
+// Tabelas do módulo: agendamentos, ocupacoes_horario, configuracao_expediente.
+// Dados de clientes, barbeiros e serviços vêm das interfaces dos outros módulos;
+// aqui só ficam os identificadores, o nome do cliente (para a busca do RF15) e o
+// preço e o custo congelados no momento do agendamento (RF23, RFA3).
+
 const appointmentSelect = `
-  SELECT a.id, a.cliente_id, c.nome AS nome_cliente, c.telefone AS telefone_cliente,
-         a.barbeiro_id, b.nome AS nome_barbeiro, a.servico_id, s.nome AS nome_servico,
-         to_char(a.data, 'YYYY-MM-DD') AS data,
-         to_char(a.horario, 'HH24:MI') AS horario,
-         a.situacao, a.preco_centavos, a.custo_centavos
-  FROM agendamentos a
-  JOIN clientes c ON c.id = a.cliente_id
-  JOIN barbeiros b ON b.id = a.barbeiro_id
-  JOIN servicos s ON s.id = a.servico_id
+  SELECT id, cliente_id, nome_cliente, barbeiro_id, servico_id,
+         to_char(data, 'YYYY-MM-DD') AS data,
+         to_char(horario, 'HH24:MI') AS horario,
+         situacao, preco_centavos, custo_centavos
+  FROM agendamentos
 `;
 
 export async function findReservedSlots(barberId, date, client = pool) {
@@ -21,9 +22,9 @@ export async function findReservedSlots(barberId, date, client = pool) {
   return new Set(result.rows.map((row) => row.horario));
 }
 
+// Serializa os agendamentos de um mesmo cliente (RF11) sem acessar a tabela de clientes.
 export async function lockCustomerAndCountActive(client, customerId) {
-  const customer = await client.query("SELECT id FROM clientes WHERE id = $1 FOR UPDATE", [customerId]);
-  if (!customer.rowCount) return null;
+  await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [customerId]);
   const active = await client.query(`
     SELECT count(*)::int AS total FROM agendamentos
     WHERE cliente_id = $1 AND situacao = 'AGENDADO'
@@ -35,9 +36,10 @@ export async function insertAppointment(client, appointment, slots) {
   const id = randomUUID();
   await client.query(`
     INSERT INTO agendamentos
-      (id, cliente_id, barbeiro_id, servico_id, data, horario, situacao, preco_centavos, custo_centavos)
-    VALUES ($1, $2, $3, $4, $5::date, $6::time, 'AGENDADO', $7, $8)
-  `, [id, appointment.clientId, appointment.barberId, appointment.serviceId,
+      (id, cliente_id, nome_cliente, barbeiro_id, servico_id, data, horario, situacao,
+       preco_centavos, custo_centavos)
+    VALUES ($1, $2, $3, $4, $5, $6::date, $7::time, 'AGENDADO', $8, $9)
+  `, [id, appointment.clientId, appointment.clientName, appointment.barberId, appointment.serviceId,
     appointment.date, appointment.time, appointment.price, appointment.cost]);
   for (const slot of slots) {
     await client.query(`
@@ -45,12 +47,12 @@ export async function insertAppointment(client, appointment, slots) {
       VALUES ($1, $2::date, $3::time, $4)
     `, [appointment.barberId, appointment.date, slot, id]);
   }
-  const result = await client.query(`${appointmentSelect} WHERE a.id = $1`, [id]);
+  const result = await client.query(`${appointmentSelect} WHERE id = $1`, [id]);
   return result.rows[0];
 }
 
 export async function selectAppointment(id, client = pool) {
-  return client.query(`${appointmentSelect} WHERE a.id = $1`, [id]);
+  return client.query(`${appointmentSelect} WHERE id = $1`, [id]);
 }
 
 export async function selectAppointmentRows(filters) {
@@ -63,7 +65,7 @@ export async function selectAppointmentRows(filters) {
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   return pool.query(`
     ${appointmentSelect} ${where}
-    ORDER BY a.data ASC, a.horario ASC
+    ORDER BY data ASC, horario ASC
   `, values);
 }
 
@@ -90,11 +92,47 @@ export async function selectStatistics(start, end, barberId) {
   let barberCondition = "";
   if (barberId) {
     values.push(barberId);
-    barberCondition = `AND a.barbeiro_id = $${values.length}`;
+    barberCondition = `AND barbeiro_id = $${values.length}`;
   }
   return pool.query(`
     ${appointmentSelect}
-    WHERE a.data >= $1::date AND a.data < $2::date ${barberCondition}
-    ORDER BY a.data, a.horario
+    WHERE data >= $1::date AND data < $2::date ${barberCondition}
+    ORDER BY data, horario
   `, values);
+}
+
+export async function selectAppointmentForPayment(id) {
+  const result = await pool.query(`
+    SELECT id, cliente_id, situacao, preco_centavos
+    FROM agendamentos WHERE id = $1
+  `, [id]);
+  return result.rows[0];
+}
+
+export async function selectScheduledForDay(date) {
+  const result = await pool.query(`
+    SELECT id, cliente_id, barbeiro_id
+    FROM agendamentos
+    WHERE data = $1::date AND situacao = 'AGENDADO'
+    ORDER BY horario
+  `, [date]);
+  return result.rows;
+}
+
+export async function selectOpeningHours(client = pool) {
+  return client.query(`
+    SELECT to_char(hora_abertura, 'HH24:MI') AS hora_abertura,
+           to_char(ultimo_horario, 'HH24:MI') AS ultimo_horario
+    FROM configuracao_expediente WHERE singleton = true
+  `);
+}
+
+export async function saveOpeningHours(opening, last) {
+  return pool.query(`
+    UPDATE configuracao_expediente
+    SET hora_abertura = $1::time, ultimo_horario = $2::time
+    WHERE singleton = true
+    RETURNING to_char(hora_abertura, 'HH24:MI') AS hora_abertura,
+              to_char(ultimo_horario, 'HH24:MI') AS ultimo_horario
+  `, [opening, last]);
 }
